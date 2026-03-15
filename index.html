@@ -1,419 +1,344 @@
 <!doctype html>
 <html lang="vi">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Thư viện kỷ niệm — BestVideo</title>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>BestVideo — Fix nút & upload</title>
   <style>
-    :root{--accent:#ff6fa3;--muted:#6b7280}
-    *{box-sizing:border-box}
-    body{font-family:Inter,system-ui,Arial,sans-serif;background:#fff7fb;margin:0;padding:18px;color:#111}
-    .container{max-width:1100px;margin:0 auto}
-    header{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
-    .brand{display:flex;gap:12px;align-items:center}
-    .logo{width:56px;height:56px;border-radius:50%;background:white;display:flex;align-items:center;justify-content:center;box-shadow:0 6px 18px rgba(0,0,0,.06)}
-    h1{margin:0;color:var(--accent)}
-    p.lead{margin:0;color:var(--muted);font-size:13px}
-    .btn{background:#fff;padding:8px 14px;border-radius:999px;cursor:pointer;border:1px solid rgba(0,0,0,0.06)}
-    .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px}
-    .card{background:white;padding:12px;border-radius:14px;box-shadow:0 6px 18px rgba(0,0,0,.06)}
-    video{border-radius:8px;background:#000;max-width:100%}
-    .meta{display:flex;justify-content:space-between;align-items:center;margin-top:10px}
-    .meta .info{font-size:13px}
-    .meta .title{color:var(--accent);font-weight:600}
-    .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,0.45);display:none;align-items:center;justify-content:center;z-index:50}
-    .modal{width:100%;max-width:900px;background:white;border-radius:12px;padding:18px}
-    .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-    label{font-size:13px;color:#444}
-    input[type="text"], input[type="file"], textarea{width:100%;padding:10px;border-radius:8px;border:1px solid #eee}
-    .drop{border:2px dashed #ffd4e8;padding:16px;border-radius:12px;text-align:center;cursor:pointer}
-    .progress{height:10px;background:#eee;border-radius:999px;overflow:hidden}
+    body{font-family:Arial,Helvetica,sans-serif;background:#fff7fb;margin:0;padding:20px;color:#111}
+    .wrap{max-width:1000px;margin:0 auto}
+    header{display:flex;justify-content:space-between;align-items:center}
+    .btn{padding:8px 12px;border-radius:10px;border:1px solid #ddd;background:#fff;cursor:pointer}
+    .primary{background:linear-gradient(90deg,#ff9ac8,#ff6fa3);color:#fff;border:none}
+    .card{background:#fff;padding:14px;border-radius:10px;box-shadow:0 6px 18px rgba(0,0,0,.06);margin-top:14px}
+    .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:center;justify-content:center;z-index:200}
+    .modal{background:#fff;border-radius:12px;padding:18px;max-width:880px;width:94%}
+    .drop{border:2px dashed #ffdbe8;padding:14px;border-radius:10px;text-align:center;cursor:pointer}
+    .log{background:#0b1220;color:#cdebf9;padding:8px;border-radius:8px;height:120px;overflow:auto;margin-top:10px;font-size:13px}
+    .progress{height:10px;background:#eee;border-radius:999px;overflow:hidden;margin-top:10px}
     .progress > span{display:block;height:100%;width:0;background:linear-gradient(90deg,#ff9ac8,#ff6fa3)}
-    .logbox{background:#0f1724;color:#e6eef8;padding:8px;border-radius:8px;font-size:12px;height:120px;overflow:auto}
-    .status{font-size:13px;color:var(--muted);margin-top:8px}
-    footer{margin-top:18px;text-align:center;color:var(--muted);font-size:13px}
-    @media (max-width:720px){ .form-grid{grid-template-columns:1fr} }
+    label{display:block;margin-top:10px;font-size:14px}
+    input[type=text]{width:100%;padding:8px;border-radius:8px;border:1px solid #eee}
+    @media (max-width:720px){ .two-col{flex-direction:column} }
   </style>
 </head>
 <body>
-  <div class="container">
+  <div class="wrap">
     <header>
-      <div class="brand">
-        <div class="logo">🎬</div>
-        <div>
-          <h1>Thư viện kỷ niệm</h1>
-          <p class="lead">Lưu giữ khoảnh khắc cùng bạn bè</p>
-        </div>
+      <div>
+        <h1>Thư viện kỷ niệm — Test</h1>
+        <div style="color:#666;font-size:13px">Thay config Firebase của bạn ở phần <code>firebaseConfig</code> nếu cần. Mở bằng Live Server.</div>
       </div>
       <div>
-        <button class="btn" id="openUpload">Tải video lên</button>
+        <button id="openUpload" class="btn primary">Tải video lên</button>
       </div>
     </header>
 
-    <main>
-      <section id="emptyHint" class="card" style="display:none;text-align:center">Chưa có video nào — hãy là người đầu tiên tải lên kỷ niệm nhé 🎬</section>
-      <section id="gallery" class="grid"></section>
-    </main>
+    <div id="gallery" class="card">
+      <strong>Gallery</strong>
+      <div id="galleryList" style="margin-top:10px"></div>
+    </div>
 
-    <footer>Thiết kế bởi TAO • Nếu upload 0% hãy gửi Console log cho mình</footer>
+    <div class="card">
+      <strong>Debug log</strong>
+      <div id="mainLog" class="log"></div>
+    </div>
   </div>
 
   <!-- Modal -->
   <div id="modal" class="modal-bg" role="dialog" aria-modal="true">
     <div class="modal">
-      <div style="display:flex;align-items:center;justify-content:space-between">
+      <div style="display:flex;justify-content:space-between;align-items:center">
         <div>
           <strong>Tải video kỷ niệm lên</strong>
-          <div class="status" id="statusShort">Tối đa 1GB. Hệ thống sẽ cố thực hiện upload và báo lỗi chi tiết nếu có.</div>
+          <div id="shortStatus" style="color:#666;font-size:13px">Tối đa 1GB. Hệ thống sẽ cố upload nếu Firebase hoạt động.</div>
         </div>
-        <div><button class="btn" id="closeModal">✕</button></div>
+        <div><button id="closeModal" class="btn">✕</button></div>
       </div>
 
-      <div style="height:12px"></div>
-
-      <div class="form-grid">
-        <div>
+      <div style="display:flex;gap:12px;margin-top:12px" class="two-col">
+        <div style="flex:1">
           <label>Tiêu đề</label>
-          <input id="titleInput" type="text" placeholder="Ví dụ: Buổi đi chơi" />
-
-          <label style="margin-top:10px">Tên người tải lên</label>
-          <input id="nameInput" type="text" placeholder="Tên bạn" />
-
+          <input id="titleInput" type="text" placeholder="Tiêu đề..." />
+          <label>Tên người tải lên</label>
+          <input id="nameInput" type="text" placeholder="Tên..." />
           <label style="margin-top:10px">Chọn video</label>
           <div id="dropzone" class="drop">Kéo thả video vào đây hoặc nhấp để chọn</div>
           <input id="fileInput" type="file" accept="video/*" style="display:none" />
-          <div id="chosenFile" style="margin-top:8px;color:var(--muted)"></div>
+          <div id="chosen" style="margin-top:8px;color:#666"></div>
         </div>
+        <div style="flex:1">
+          <strong>Xem trước</strong>
+          <div id="preview" style="margin-top:10px;min-height:200px;background:#fff;border-radius:8px;display:flex;align-items:center;justify-content:center">Chưa chọn video</div>
 
-        <div>
-          <div style="background:#fff6fb;border-radius:10px;padding:12px;height:100%;display:flex;flex-direction:column;justify-content:space-between">
-            <div>
-              <strong>Xem trước</strong>
-              <div id="previewBox" style="margin-top:10px;background:#fff;padding:8px;border-radius:8px;min-height:180px;display:flex;align-items:center;justify-content:center">Chưa chọn video</div>
-            </div>
-
-            <div>
-              <div style="margin-top:10px;display:flex;gap:8px">
-                <button id="startUpload" class="btn" style="background:linear-gradient(90deg,#ff9ac8,#ff6fa3);color:white;border:none">Bắt đầu tải lên</button>
-                <button id="cancelUpload" class="btn">Hủy</button>
-              </div>
-
-              <div style="margin-top:12px">
-                <div class="progress" aria-hidden="true"><span id="progBar"></span></div>
-                <div id="progText" style="margin-top:6px;color:var(--muted)"></div>
-              </div>
-
-              <div style="margin-top:8px;color:var(--muted);font-size:12px">Bằng cách tải lên, bạn đồng ý chia sẻ video công khai với mọi người.</div>
-            </div>
+          <div style="margin-top:12px;display:flex;gap:8px">
+            <button id="startUpload" class="btn primary">Bắt đầu tải lên</button>
+            <button id="cancelUpload" class="btn">Hủy</button>
           </div>
+
+          <div class="progress"><span id="progSpan"></span></div>
+          <div id="progText" style="margin-top:6px;color:#666">0%</div>
+          <div style="margin-top:8px;font-size:13px;color:#666">Nếu upload dừng ở 0%, copy log bên dưới và gửi cho mình.</div>
         </div>
       </div>
 
-      <div style="height:12px"></div>
-      <div><strong>Log (debug)</strong></div>
-      <div class="logbox" id="logBox"></div>
+      <div style="margin-top:12px">
+        <strong>Log (copy nếu cần)</strong>
+        <div id="modalLog" class="log"></div>
+      </div>
     </div>
   </div>
 
-  <!-- Firebase (Compat) -->
+  <!-- Firebase compat -->
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-storage-compat.js"></script>
 
   <script>
-  // ==================== CONFIG - Thay bằng config của bạn ====================
-  const firebaseConfig = {
-   apiKey: "AIzaSyBTrWF_XmERg7yPOf034u3MmCCCIpFHoAo", 
-     authDomain: "bestmemory-f615f.firebaseapp.com", 
-     projectId: "bestmemory-f615f", 
-     storageBucket: "bestmemory-f615f.firebasestorage.app",
-     messagingSenderId: "665922224684", 
-     appId: "1:665922224684:web:849f1d2479c18571ac8789"
-  };
-  // ==========================================================================
+  document.addEventListener('DOMContentLoaded', () => {
+    // ----------------- CONFIG: bạn đã gửi (mình giữ như bạn yêu cầu) -----------------
+    const firebaseConfig = {
+  apiKey: "AIzaSyBTrWF_XmERg7yPOf034u3MmCCCIpFHoAo",
+  authDomain: "bestmemory-f615f.firebaseapp.com",
+  projectId: "bestmemory-f615f",
+  storageBucket: "bestmemory-f615f.firebasestorage.app",
+  messagingSenderId: "665922224684",
+  appId: "1:665922224684:web:849f1d2479c18571ac8789",
+  measurementId: "G-95WTYNLBK7"
+};
 
-  // Safe init: nếu đã init rồi, không init lại
-  try {
-    if (!firebase.apps.length) {
-      firebase.initializeApp(firebaseConfig);
-      consoleLog('Firebase initialized.');
-    } else {
-      consoleLog('Firebase already initialized.');
+    // ------------------------------------------------------------------------------
+
+    // UI refs
+    const openUpload = document.getElementById('openUpload');
+    const modal = document.getElementById('modal');
+    const closeModalBtn = document.getElementById('closeModal');
+    const dropzone = document.getElementById('dropzone');
+    const fileInput = document.getElementById('fileInput');
+    const chosen = document.getElementById('chosen');
+    const preview = document.getElementById('preview');
+    const startBtn = document.getElementById('startUpload');
+    const cancelBtn = document.getElementById('cancelUpload');
+    const progSpan = document.getElementById('progSpan');
+    const progText = document.getElementById('progText');
+    const mainLog = document.getElementById('mainLog');
+    const modalLog = document.getElementById('modalLog');
+    const titleInput = document.getElementById('titleInput');
+    const nameInput = document.getElementById('nameInput');
+    const galleryList = document.getElementById('galleryList');
+    const shortStatus = document.getElementById('shortStatus');
+
+    let selectedFile = null;
+    let uploadTask = null;
+    let firebaseAvailable = false;
+    let auth = null, db = null, storage = null;
+
+    function addLog(el, ...args) {
+      console.log(...args);
+      const s = args.map(a => (typeof a === 'object' ? JSON.stringify(a) : String(a))).join(' ');
+      const row = document.createElement('div');
+      row.textContent = new Date().toLocaleTimeString() + ' ' + s;
+      el.appendChild(row);
+      el.scrollTop = el.scrollHeight;
     }
-  } catch (e) {
-    consoleLog('Firebase init error: ' + (e && e.message));
-    alert('Lỗi khởi tạo Firebase. Hãy kiểm tra firebaseConfig trong file.');
-  }
 
-  const auth = firebase.auth();
-  const db = firebase.firestore();
-  const storage = firebase.storage();
+    function uiLog(...args) { addLog(mainLog, ...args); addLog(modalLog, ...args); }
 
-  // UI elements
-  const openUpload = document.getElementById('openUpload');
-  const modal = document.getElementById('modal');
-  const closeModal = document.getElementById('closeModal');
-  const dropzone = document.getElementById('dropzone');
-  const fileInput = document.getElementById('fileInput');
-  const chosenFile = document.getElementById('chosenFile');
-  const previewBox = document.getElementById('previewBox');
-  const startUpload = document.getElementById('startUpload');
-  const cancelUpload = document.getElementById('cancelUpload');
-  const progBar = document.getElementById('progBar');
-  const progText = document.getElementById('progText');
-  const gallery = document.getElementById('gallery');
-  const emptyHint = document.getElementById('emptyHint');
-  const titleInput = document.getElementById('titleInput');
-  const nameInput = document.getElementById('nameInput');
-  const logBox = document.getElementById('logBox');
-  const statusShort = document.getElementById('statusShort');
-
-  let selectedFile = null;
-  let currentUploadTask = null;
-
-  function consoleLog(...args) {
-    // prints to console and UI log
-    console.log(...args);
-    const s = args.map(a => (typeof a === 'object' ? JSON.stringify(a) : String(a))).join(' ');
-    const line = document.createElement('div');
-    line.textContent = new Date().toLocaleTimeString() + ' ' + s;
-    logBox.appendChild(line);
-    logBox.scrollTop = logBox.scrollHeight;
-  }
-
-  // Open modal
-  openUpload.addEventListener('click', () => {
-    modal.style.display = 'flex';
-    // show current auth status
-    setTimeout(()=> showAuthStatus(), 50);
-  });
-  closeModal.addEventListener('click', closeAndReset);
-
-  function closeAndReset() {
-    modal.style.display = 'none';
-    selectedFile = null;
-    chosenFile.textContent = '';
-    previewBox.innerHTML = 'Chưa chọn video';
-    progBar.style.width = '0%';
-    progText.textContent = '';
-    titleInput.value = '';
-    nameInput.value = '';
-    if (currentUploadTask && typeof currentUploadTask.cancel === 'function') {
-      try { currentUploadTask.cancel(); } catch(e){}
-      currentUploadTask = null;
+    // Initialize Firebase safely. If fails, keep UI usable.
+    try {
+      if (!firebase.apps.length) {
+        firebase.initializeApp(firebaseConfig);
+        uiLog('Firebase initialized OK.');
+      } else {
+        uiLog('Firebase app already initialized.');
+      }
+      auth = firebase.auth();
+      db = firebase.firestore();
+      storage = firebase.storage();
+      firebaseAvailable = true;
+    } catch (e) {
+      firebaseAvailable = false;
+      uiLog('Firebase init error:', e && (e.message || e));
+      shortStatus.textContent = 'Firebase chưa sẵn sàng — bạn vẫn có thể xem trước video cục bộ. Upload sẽ không hoạt động nếu Firebase lỗi.';
     }
-  }
 
-  // Drag & Drop + file picker
-  dropzone.addEventListener('click', () => fileInput.click());
-  dropzone.addEventListener('dragover', (e) => { e.preventDefault(); dropzone.style.borderColor = '#ff9ac8'; });
-  dropzone.addEventListener('dragleave', () => { dropzone.style.borderColor = ''; });
-  dropzone.addEventListener('drop', (e) => {
-    e.preventDefault(); dropzone.style.borderColor = '';
-    const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
-    if (f) selectFile(f);
-  });
+    // Ensure openUpload always works (this was your main problem: button inactive when errors)
+    openUpload.addEventListener('click', () => {
+      modal.style.display = 'flex';
+      uiLog('Modal opened by user.');
+      // show auth status if firebase available
+      if (firebaseAvailable && auth) {
+        const u = auth.currentUser;
+        uiLog('Auth status at modal open:', u ? u.uid : 'not signed in');
+      }
+    });
 
-  fileInput.addEventListener('change', (e) => {
-    const f = e.target.files && e.target.files[0];
-    if (f) selectFile(f);
-  });
+    closeModalBtn.addEventListener('click', () => {
+      modal.style.display = 'none';
+      resetModal();
+    });
 
-  function selectFile(f) {
-    if (!f.type || !f.type.startsWith('video/')) {
-      alert('Vui lòng chọn file video (MP4, WebM, OGG...)');
-      return;
+    // drag & drop and file picker
+    dropzone.addEventListener('click', () => fileInput.click());
+    dropzone.addEventListener('dragover', (e) => { e.preventDefault(); dropzone.style.borderColor = '#ff9ac8'; });
+    dropzone.addEventListener('dragleave', () => { dropzone.style.borderColor = ''; });
+    dropzone.addEventListener('drop', (e) => {
+      e.preventDefault(); dropzone.style.borderColor = '';
+      const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+      if (f) selectFile(f);
+    });
+    fileInput.addEventListener('change', (e) => {
+      const f = e.target.files && e.target.files[0];
+      if (f) selectFile(f);
+    });
+
+    function selectFile(f) {
+      if (!f.type || !f.type.startsWith('video/')) { alert('Chỉ chọn file video.'); uiLog('Invalid file type:', f.type); return; }
+      const max = 1024 * 1024 * 1024; if (f.size > max) { alert('Giới hạn 1GB'); return; }
+      selectedFile = f;
+      chosen.textContent = 'Chọn: ' + f.name + ' (' + Math.round(f.size/1024) + ' KB)';
+      preview.innerHTML = '';
+      const v = document.createElement('video'); v.controls = true; v.style.maxWidth = '100%'; v.src = URL.createObjectURL(f);
+      preview.appendChild(v);
+      uiLog('File selected:', f.name, f.size, f.type);
     }
-    const maxBytes = 1024 * 1024 * 1024; // 1GB
-    if (f.size > maxBytes) { alert('Giới hạn 1GB'); return; }
-    selectedFile = f;
-    chosenFile.textContent = 'Chọn: ' + f.name + ' (' + Math.round(f.size/1024) + ' KB)';
-    previewBox.innerHTML = '';
-    const vid = document.createElement('video');
-    vid.controls = true; vid.style.maxWidth = '100%'; vid.style.borderRadius = '8px';
-    vid.src = URL.createObjectURL(f);
-    previewBox.appendChild(vid);
-    consoleLog('File selected:', f.name, f.size, f.type);
-  }
 
-  // show auth status in UI
-  function showAuthStatus() {
-    const u = auth.currentUser;
-    statusShort.textContent = 'Auth: ' + (u ? ('signed in (uid=' + u.uid + ')') : 'not signed in (will sign in anonymously before upload)');
-    consoleLog('Auth status:', u ? u.uid : 'none');
-  }
-
-  // anonymous sign-in attempt on load (best-effort)
-  auth.signInAnonymously().then((cred) => {
-    consoleLog('Anonymous sign-in success, uid=', cred.user && cred.user.uid);
-    showAuthStatus();
-  }).catch((err) => {
-    consoleLog('Anonymous sign-in failed:', err && err.code, err && err.message);
-    showAuthStatus();
-  });
-
-  // Cancel upload
-  cancelUpload.addEventListener('click', () => {
-    if (currentUploadTask && typeof currentUploadTask.cancel === 'function') {
-      currentUploadTask.cancel();
-      consoleLog('Upload canceled by user.');
-      progText.textContent = 'Đã hủy.';
-      startUpload.disabled = false;
-    } else {
-      closeAndReset();
+    function resetModal() {
+      selectedFile = null;
+      chosen.textContent = '';
+      preview.innerHTML = 'Chưa chọn video';
+      progSpan.style.width = '0%';
+      progText.textContent = '0%';
+      titleInput.value = '';
+      nameInput.value = '';
+      if (uploadTask && typeof uploadTask.cancel === 'function') {
+        try { uploadTask.cancel(); uiLog('Upload canceled on reset.'); } catch(e){ uiLog('Cancel upload error', e && e.message); }
+      }
+      uploadTask = null;
     }
-  });
 
-  // Start upload with robust logging
-  startUpload.addEventListener('click', () => {
-    if (!selectedFile) { alert('Chọn file trước khi tải lên'); return; }
-    if (!navigator.onLine) { alert('Bạn đang offline — kết nối mạng cần thiết để upload.'); return; }
-    startUpload.disabled = true;
-    progText.textContent = 'Đang chuẩn bị...';
-    consoleLog('--- Upload bắt đầu ---', selectedFile.name, selectedFile.size);
+    // Start upload
+    startBtn.addEventListener('click', async () => {
+      if (!selectedFile) { alert('Chọn file trước khi tải lên'); return; }
+      if (!navigator.onLine) { alert('Bạn đang offline'); return; }
+      startBtn.disabled = true;
+      uiLog('Upload requested:', selectedFile.name);
 
-    const title = titleInput.value.trim() || 'Kỷ niệm';
-    const uploaderName = nameInput.value.trim() || 'Bạn ẩn danh';
+      if (!firebaseAvailable) {
+        alert('Firebase chưa sẵn sàng — kiểm tra firebaseConfig hoặc kết nối. Bạn vẫn có thể xem trước video cục bộ.');
+        startBtn.disabled = false;
+        return;
+      }
 
-    // debug output
-    try { consoleLog('firebase.app().options:', firebase.app().options); } catch(e) { consoleLog('firebase app missing or invalid config'); }
+      // Ensure anonymous auth, wait small time
+      try {
+        if (!auth.currentUser) {
+          uiLog('No auth user — attempting anonymous sign-in...');
+          await auth.signInAnonymously();
+          uiLog('Signed in anonymously:', auth.currentUser && auth.currentUser.uid);
+        } else {
+          uiLog('Already signed in:', auth.currentUser.uid);
+        }
+      } catch (e) {
+        uiLog('Anonymous sign-in failed:', e && e.message);
+        // proceed but likely Storage rules require auth; we will try and show error if denied
+      }
 
-    const doUpload = () => {
-      // build safe path
+      // Build safe path
       const safeName = selectedFile.name.replace(/[^a-zA-Z0-9_.-]/g, '_');
       const path = 'videos/' + Date.now() + '_' + safeName;
-      consoleLog('Uploading to', path);
+      uiLog('Uploading to', path);
 
-      // start upload
-      const uploadTask = storage.ref(path).put(selectedFile);
-      currentUploadTask = uploadTask; // for cancel
-      window.__lastUploadTask = uploadTask; // global for debugging
+      try {
+        uploadTask = storage.ref(path).put(selectedFile);
+        window.__lastUpload = uploadTask;
 
-      uploadTask.on('state_changed',
-        (snapshot) => {
+        uploadTask.on('state_changed', (snap) => {
           try {
-            const transferred = snapshot.bytesTransferred || 0;
-            const total = snapshot.totalBytes || selectedFile.size || 0;
-            const pct = total ? Math.round((transferred / total) * 100) : 0;
-            progBar.style.width = pct + '%';
-            progText.textContent = 'Đã tải: ' + pct + '%';
-            consoleLog('progress', { transferred, total, pct, state: snapshot.state });
-          } catch (e) { consoleLog('progress parse error', e); }
-        },
-        (err) => {
-          consoleLog('Upload failed:', err && err.code, err && err.message);
-          startUpload.disabled = false;
-          // friendly messages
+            const transferred = snap.bytesTransferred || 0;
+            const total = snap.totalBytes || selectedFile.size || 0;
+            const pct = total ? Math.round((transferred/total)*100) : 0;
+            progSpan.style.width = pct + '%';
+            progText.textContent = pct + '%';
+            uiLog('progress', { transferred, total, pct, state: snap.state });
+          } catch (e) { uiLog('progress parse error', e && e.message); }
+        }, (err) => {
+          uiLog('Upload error:', err && err.code, err && err.message);
+          startBtn.disabled = false;
           if (err && err.code === 'storage/unauthorized') {
-            alert('Upload bị từ chối: Storage rules chặn ghi. Kiểm tra Storage rules trong Firebase Console.');
-          } else if (err && err.code === 'storage/canceled') {
-            alert('Upload đã bị hủy.');
+            alert('Upload bị từ chối: kiểm tra Storage rules (storage/unauthorized).');
           } else {
-            alert('Upload thất bại: ' + (err && err.message ? err.message : 'Không rõ lỗi. Xem console log.'));
+            alert('Upload thất bại: ' + (err && err.message ? err.message : 'unknown'));
           }
-          progText.textContent = 'Lỗi: ' + (err && err.message ? err.message : 'unknown');
-          currentUploadTask = null;
-        },
-        () => {
-          // complete
-          uploadTask.snapshot.ref.getDownloadURL().then((url) => {
-            consoleLog('Download URL ready:', url);
-            db.collection('videos').add({
-              title: title,
-              uploaderName: uploaderName,
+        }, async () => {
+          try {
+            const url = await uploadTask.snapshot.ref.getDownloadURL();
+            uiLog('Upload complete, URL:', url);
+            // Save metadata
+            await db.collection('videos').add({
+              title: titleInput.value.trim() || 'Kỷ niệm',
+              uploaderName: nameInput.value.trim() || 'Bạn ẩn danh',
               url: url,
               createdAt: firebase.firestore.FieldValue.serverTimestamp()
-            }).then(() => {
-              consoleLog('Metadata saved to Firestore.');
-              progText.textContent = 'Tải lên hoàn tất!';
-              startUpload.disabled = false;
-              currentUploadTask = null;
-              setTimeout(() => { closeAndReset(); }, 900);
-            }).catch((err) => {
-              consoleLog('Save metadata failed:', err && err.message);
-              alert('Lưu thông tin thất bại: ' + (err && err.message));
-              startUpload.disabled = false;
-              currentUploadTask = null;
             });
-          }).catch((err) => {
-            consoleLog('GetDownloadURL failed:', err && err.message);
-            alert('Không lấy được URL: ' + (err && err.message));
-            startUpload.disabled = false;
-            currentUploadTask = null;
-          });
-        }
-      );
-    };
+            uiLog('Metadata saved to Firestore.');
+            startBtn.disabled = false;
+            resetModal();
+            modal.style.display = 'none';
+          } catch (e) {
+            uiLog('Finish error:', e && e.message);
+            alert('Lỗi khi lưu metadata hoặc lấy URL: ' + (e && e.message));
+            startBtn.disabled = false;
+          }
+        });
+      } catch (e) {
+        uiLog('Start upload exception:', e && e.message);
+        alert('Không thể bắt đầu upload: ' + (e && e.message));
+        startBtn.disabled = false;
+      }
+    });
 
-    // Ensure auth before upload for projects that require it
-    if (!auth.currentUser) {
-      consoleLog('No auth currentUser, signing in anonymously...');
-      auth.signInAnonymously().then(() => {
-        consoleLog('Signed in anon, uid:', auth.currentUser && auth.currentUser.uid);
-        doUpload();
-      }).catch((err) => {
-        consoleLog('Anon sign-in failed but will attempt upload anyway:', err && err.message);
-        doUpload();
-      });
+    cancelBtn.addEventListener('click', () => {
+      if (uploadTask && typeof uploadTask.cancel === 'function') {
+        try { uploadTask.cancel(); uiLog('User canceled upload.'); } catch(e){ uiLog('Cancel error', e && e.message); }
+      }
+      resetModal();
+      modal.style.display = 'none';
+    });
+
+    // Firestore listener to show gallery (only if firebase available)
+    if (firebaseAvailable) {
+      try {
+        db.collection('videos').orderBy('createdAt', 'desc').onSnapshot((snap) => {
+          const items = [];
+          snap.forEach(d => items.push(d.data()));
+          galleryList.innerHTML = '';
+          if (!items.length) {
+            galleryList.textContent = 'Chưa có video';
+          } else {
+            items.forEach(v => {
+              const box = document.createElement('div'); box.style.marginBottom='12px';
+              const video = document.createElement('video'); video.controls = true; video.style.maxWidth = '100%';
+              video.src = v.url;
+              box.appendChild(video);
+              const meta = document.createElement('div'); meta.style.fontSize='13px'; meta.style.color='#666';
+              meta.textContent = (v.title||'Kỷ niệm') + ' • ' + (v.uploaderName||'Bạn ẩn danh') + ' • ' + (v.createdAt && v.createdAt.toDate ? new Date(v.createdAt.toDate()).toLocaleString('vi-VN') : '');
+              box.appendChild(meta);
+              galleryList.appendChild(box);
+            });
+          }
+        }, (err) => { uiLog('Firestore listen error:', err && err.message); });
+      } catch (e) {
+        uiLog('Setup gallery listener error:', e && e.message);
+      }
     } else {
-      doUpload();
+      uiLog('Skipping Firestore gallery listener because Firebase not available.');
     }
+
+    // final note
+    uiLog('UI ready. If button was inactive before, it should work now. If upload stuck at 0% copy modalLog and console output and gửi cho mình.');
   });
-
-  // Real-time gallery rendering
-  function renderGallery(records) {
-    gallery.innerHTML = '';
-    if (!records || records.length === 0) {
-      emptyHint.style.display = 'block';
-      return;
-    }
-    emptyHint.style.display = 'none';
-    records.forEach((v) => {
-      const card = document.createElement('div'); card.className = 'card';
-      const vidWrap = document.createElement('div');
-      vidWrap.style.overflow = 'hidden'; vidWrap.style.borderRadius = '10px'; vidWrap.style.background = '#000';
-      vidWrap.style.height = '200px';
-      const video = document.createElement('video');
-      video.controls = true; video.style.width = '100%'; video.style.height = '100%';
-      video.src = v.url;
-      vidWrap.appendChild(video);
-      card.appendChild(vidWrap);
-      const meta = document.createElement('div'); meta.className = 'meta';
-      const info = document.createElement('div'); info.className = 'info';
-      const title = document.createElement('div'); title.className = 'title'; title.textContent = v.title || 'Kỷ niệm';
-      const who = document.createElement('div'); who.className = 'time'; who.textContent = (v.uploaderName || 'Bạn ẩn danh') + ' • ' + formatTimestamp(v.createdAt);
-      info.appendChild(title); info.appendChild(who);
-      const heart = document.createElement('button'); heart.className = 'btn'; heart.textContent = '♥';
-      meta.appendChild(info); meta.appendChild(heart);
-      card.appendChild(meta);
-      gallery.appendChild(card);
-    });
-  }
-
-  function formatTimestamp(ts) {
-    if (!ts) return 'vừa xong';
-    try { if (ts.toDate) return new Date(ts.toDate()).toLocaleString('vi-VN'); } catch (e) {}
-    if (ts.seconds) return new Date(ts.seconds * 1000).toLocaleString('vi-VN');
-    return '' + ts;
-  }
-
-  // Listen to Firestore collection
-  try {
-    db.collection('videos').orderBy('createdAt', 'desc').onSnapshot((snap) => {
-      const arr = [];
-      snap.forEach(d => arr.push(d.data()));
-      renderGallery(arr);
-      consoleLog('Gallery updated:', arr.length, 'items');
-    }, (err) => {
-      consoleLog('Listening to videos failed:', err && err.message);
-    });
-  } catch (err) {
-    consoleLog('Firestore listen error:', err && err.message);
-  }
-
-  // Extra advice printed in UI log
-  consoleLog('UI ready. Replace firebaseConfig with your project values. If upload stuck at 0%, check Console network/errors and Storage rules.');
   </script>
 </body>
 </html>

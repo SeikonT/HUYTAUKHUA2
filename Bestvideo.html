@@ -1,0 +1,370 @@
+<!--
+BestVideo.html
+Standalone single-file "Cute Video Library" using Firebase (compat CDN)
+
+How to use:
+1. Replace the firebaseConfig object with your Firebase project's config.
+2. Open this file with a local server (recommended) or deploy to Firebase Hosting / Vercel.
+   - If you open as file:// some browsers block network requests - use Live Server extension in VSCode or run: npx http-server
+3. Make sure Firestore and Storage are enabled in your project. Adjust rules for anonymous writes if needed (examples are in comments below).
+
+This file intentionally uses the Firebase Compat SDK because it's simpler to paste into an HTML file.
+-->
+
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Thư viện kỷ niệm - Cute Video Library</title>
+  <style>
+    /* Cute, simple styles (no Tailwind needed) */
+    :root{ --bg1:#fff6fb; --bg2:#fffbe6; --accent:#ff6fa3; --muted:#6b7280 }
+    *{box-sizing:border-box}
+    body{font-family:Inter,system-ui,Arial,sans-serif;background:linear-gradient(180deg,var(--bg1),var(--bg2));margin:0;padding:20px;color:#111}
+    .container{max-width:1100px;margin:0 auto}
+    header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}
+    .brand{display:flex;align-items:center;gap:12px}
+    .logo{width:56px;height:56px;border-radius:50%;background:white;display:flex;align-items:center;justify-content:center;box-shadow:0 6px 18px rgba(0,0,0,.08)}
+    h1{margin:0;font-size:20px;color:var(--accent)}
+    p.lead{margin:0;color:var(--muted);font-size:13px}
+    .btn{background:#fff;padding:8px 14px;border-radius:999px;cursor:pointer;border:1px solid rgba(0,0,0,0.06)}
+    .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px}
+    .card{background:white;padding:12px;border-radius:14px;box-shadow:0 6px 18px rgba(0,0,0,.06);display:flex;flex-direction:column}
+    video{border-radius:8px;background:#000}
+    .meta{display:flex;justify-content:space-between;align-items:center;margin-top:10px}
+    .meta .info{font-size:13px}
+    .meta .info .title{color:var(--accent);font-weight:600}
+    .meta .time{color:var(--muted);font-size:12px}
+
+    /* Modal */
+    .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,0.45);display:flex;align-items:center;justify-content:center}
+    .modal{width:100%;max-width:820px;background:white;border-radius:16px;padding:18px}
+    .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    label{font-size:12px;color:#444}
+    input[type="text"], input[type="file"], textarea{width:100%;padding:10px;border-radius:10px;border:1px solid #eee}
+    .drop{border:2px dashed #ffd4e8;padding:16px;border-radius:12px;text-align:center;cursor:pointer}
+    .progress{height:8px;background:#eee;border-radius:999px;overflow:hidden}
+    .progress > span{display:block;height:100%;width:0;background:linear-gradient(90deg,#ff9ac8,#ff6fa3)}
+
+    footer{margin-top:26px;text-align:center;color:var(--muted);font-size:13px}
+
+    @media (max-width:720px){ .form-grid{grid-template-columns:1fr} }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="brand">
+        <div class="logo">🎬</div>
+        <div>
+          <h1>Thư viện kỷ niệm</h1>
+          <p class="lead">Lưu giữ khoảnh khắc xinh xắn cùng bạn bè</p>
+        </div>
+      </div>
+      <div>
+        <button class="btn" id="openUpload">Tải video lên</button>
+      </div>
+    </header>
+
+    <main>
+      <section id="emptyHint" style="display:none" class="card text-center">Chưa có video nào — hãy là người đầu tiên tải lên kỷ niệm nhé 🎬</section>
+      <section id="gallery" class="grid"></section>
+    </main>
+
+    <footer>Thiết kế dễ thương bởi ChatGPT • Chúc bạn có nhiều khoảnh khắc đẹp 💫</footer>
+  </div>
+
+  <!-- Upload Modal -->
+  <div id="modal" style="display:none" class="modal-bg" role="dialog">
+    <div class="modal">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <div>
+          <strong>Tải video kỷ niệm lên</strong>
+          <div style="color:var(--muted);font-size:13px">Chia sẻ khoảnh khắc với bạn bè — tối đa 1GB</div>
+        </div>
+        <div><button id="closeModal" class="btn">✕</button></div>
+      </div>
+
+      <div class="form-grid">
+        <div>
+          <label>Tiêu đề</label>
+          <input id="titleInput" type="text" placeholder="Ví dụ: Buổi đi chơi cùng lớp" />
+
+          <label style="margin-top:10px">Tên người tải lên</label>
+          <input id="nameInput" type="text" placeholder="Bạn hoặc tên nhóm" />
+
+          <label style="margin-top:10px">Chọn video</label>
+          <div id="dropzone" class="drop">Kéo thả video vào đây hoặc nhấp để chọn</div>
+          <input id="fileInput" type="file" accept="video/*" style="display:none" />
+          <div id="chosenFile" style="margin-top:8px;color:var(--muted);font-size:13px"></div>
+        </div>
+
+        <div>
+          <div style="background:#fff6fb;border-radius:10px;padding:12px;height:100%;display:flex;flex-direction:column;justify-content:space-between">
+            <div>
+              <strong>Xem trước</strong>
+              <div id="previewBox" style="margin-top:10px;background:#fff;padding:8px;border-radius:8px;min-height:180px;display:flex;align-items:center;justify-content:center">Chưa chọn video</div>
+            </div>
+
+            <div>
+              <div style="margin-top:10px">
+                <button id="startUpload" class="btn" style="background:linear-gradient(90deg,#ff9ac8,#ff6fa3);color:white;border:none">Bắt đầu tải lên</button>
+              </div>
+
+              <div style="margin-top:12px">
+                <div class="progress" aria-hidden="true"><span id="progBar"></span></div>
+                <div id="progText" style="margin-top:6px;color:var(--muted);font-size:13px"></div>
+              </div>
+
+              <div style="margin-top:8px;color:var(--muted);font-size:12px">Bằng cách tải lên, bạn đồng ý chia sẻ video công khai với mọi người.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Firebase (Compat) SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-storage-compat.js"></script>
+
+  <script>
+    // ====== REPLACE with your Firebase config ======
+    const firebaseConfig = {
+      apiKey: "AIzaSyBTrWF_XmERg7yPOf034u3MmCCCIpFHoAo",
+      authDomain: "bestmemory-f615f.firebaseapp.com",
+      projectId: "bestmemory-f615f",
+      storageBucket: "bestmemory-f615f.firebasestorage.app",
+      messagingSenderId: "665922224684",
+      appId: "1:665922224684:web:849f1d2479c18571ac8789"
+    };
+    // ==============================================
+
+    // Initialize Firebase
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.firestore();
+    const storage = firebase.storage();
+
+    // Elements
+    const openUpload = document.getElementById('openUpload');
+    const modal = document.getElementById('modal');
+    const closeModal = document.getElementById('closeModal');
+    const dropzone = document.getElementById('dropzone');
+    const fileInput = document.getElementById('fileInput');
+    const chosenFile = document.getElementById('chosenFile');
+    const previewBox = document.getElementById('previewBox');
+    const startUpload = document.getElementById('startUpload');
+    const progBar = document.getElementById('progBar');
+    const progText = document.getElementById('progText');
+    const gallery = document.getElementById('gallery');
+    const emptyHint = document.getElementById('emptyHint');
+    const titleInput = document.getElementById('titleInput');
+    const nameInput = document.getElementById('nameInput');
+
+    let selectedFile = null;
+
+    // Helper: show modal
+    openUpload.addEventListener('click', () => { modal.style.display = 'flex'; });
+    closeModal.addEventListener('click', () => { closeAndReset(); });
+
+    function closeAndReset() {
+      modal.style.display = 'none';
+      selectedFile = null;
+      chosenFile.textContent = '';
+      previewBox.innerHTML = 'Chưa chọn video';
+      progBar.style.width = '0%';
+      progText.textContent = '';
+      titleInput.value = '';
+      nameInput.value = '';
+    }
+
+    // Drag & drop handlers
+    dropzone.addEventListener('click', () => fileInput.click());
+
+    dropzone.addEventListener('dragover', (e) => { e.preventDefault(); dropzone.style.borderColor = '#ff9ac8'; });
+    dropzone.addEventListener('dragleave', () => { dropzone.style.borderColor = ''; });
+    dropzone.addEventListener('drop', (e) => {
+      e.preventDefault(); dropzone.style.borderColor = '';
+      const f = e.dataTransfer.files && e.dataTransfer.files[0];
+      if (f) selectFile(f);
+    });
+
+    fileInput.addEventListener('change', (e) => {
+      const f = e.target.files && e.target.files[0];
+      if (f) selectFile(f);
+    });
+
+    function selectFile(f) {
+      if (!f.type || !f.type.startsWith('video/')) {
+        alert('Vui lòng chọn file video (MP4, WebM, OGG...)');
+        return;
+      }
+      const maxBytes = 1024 * 1024 * 1024; //1GB
+      if (f.size > maxBytes) { alert('Giới hạn 1GB'); return; }
+      selectedFile = f;
+      chosenFile.textContent = 'Chọn: ' + f.name;
+      // preview
+      previewBox.innerHTML = '';
+      const vid = document.createElement('video');
+      vid.controls = true; vid.style.maxWidth = '100%'; vid.style.borderRadius = '8px';
+      vid.src = URL.createObjectURL(f);
+      previewBox.appendChild(vid);
+    }
+
+    // Anonymous auth (so uploads are authenticated)
+    auth.signInAnonymously().catch((err) => {
+      console.warn('Auth failed:', err.message || err);
+    });
+
+    // Upload handler
+    startUpload.addEventListener('click', () => {
+      if (!selectedFile) { alert('Chọn file trước khi tải lên'); return; }
+      startUpload.disabled = true;
+      progText.textContent = 'Đang chuẩn bị...';
+
+      const title = titleInput.value.trim() || 'Kỷ niệm';
+      const uploaderName = nameInput.value.trim() || 'Bạn ẩn danh';
+
+      // ensure signed in (best-effort)
+      const doUpload = () => {
+        const safeName = selectedFile.name.replace(/[^a-zA-Z0-9_.-]/g, '_');
+        const path = 'videos/' + Date.now() + '_' + safeName;
+        const uploadTask = storage.ref(path).put(selectedFile);
+
+        uploadTask.on('state_changed', (snapshot) => {
+          const pct = Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100);
+          progBar.style.width = pct + '%';
+          progText.textContent = 'Đã tải: ' + pct + '%';
+        }, (err) => {
+          console.error('Upload error', err);
+          alert('Upload thất bại: ' + (err.message || err));
+          startUpload.disabled = false;
+        }, () => {
+          // success
+          uploadTask.snapshot.ref.getDownloadURL().then((url) => {
+            db.collection('videos').add({
+              title: title,
+              uploaderName: uploaderName,
+              url: url,
+              createdAt: firebase.firestore.FieldValue.serverTimestamp()
+            }).then(() => {
+              progText.textContent = 'Tải lên hoàn tất!';
+              startUpload.disabled = false;
+              setTimeout(() => closeAndReset(), 900);
+            }).catch((err) => {
+              console.error('Save metadata failed', err);
+              alert('Lưu thông tin thất bại: ' + (err.message || err));
+              startUpload.disabled = false;
+            });
+          }).catch((err) => {
+            console.error('GetDownloadURL failed', err);
+            alert('Không lấy được URL: ' + (err.message || err));
+            startUpload.disabled = false;
+          });
+        });
+      };
+
+      if (!auth.currentUser) {
+        auth.signInAnonymously().then(doUpload).catch((err) => {
+          console.warn('Auth before upload failed', err); doUpload();
+        });
+      } else doUpload();
+    });
+
+    // Render gallery from Firestore in real-time
+    function renderGallery(docs) {
+      gallery.innerHTML = '';
+      if (docs.length === 0) { emptyHint.style.display = 'block'; return; } else { emptyHint.style.display = 'none'; }
+
+      docs.forEach((doc) => {
+        const v = doc;
+        const card = document.createElement('div');
+        card.className = 'card';
+
+        const vidWrap = document.createElement('div');
+        vidWrap.style.overflow = 'hidden';
+        vidWrap.style.borderRadius = '10px';
+        vidWrap.style.background = '#000';
+        vidWrap.style.height = '200px';
+
+        const video = document.createElement('video');
+        video.controls = true;
+        video.style.width = '100%';
+        video.style.height = '100%';
+        video.src = v.url;
+
+        vidWrap.appendChild(video);
+        card.appendChild(vidWrap);
+
+        const meta = document.createElement('div');
+        meta.className = 'meta';
+        const info = document.createElement('div');
+        info.className = 'info';
+        const title = document.createElement('div');
+        title.className = 'title';
+        title.textContent = v.title || 'Kỷ niệm';
+        const who = document.createElement('div');
+        who.textContent = (v.uploaderName || 'Bạn ẩn danh') + ' • ' + formatTimestamp(v.createdAt);
+        who.className = 'time';
+        info.appendChild(title);
+        info.appendChild(who);
+
+        const heart = document.createElement('button');
+        heart.className = 'btn';
+        heart.textContent = '♥';
+        heart.title = 'Thích (demo)';
+
+        meta.appendChild(info);
+        meta.appendChild(heart);
+        card.appendChild(meta);
+
+        gallery.appendChild(card);
+      });
+    }
+
+    function formatTimestamp(ts) {
+      if (!ts) return 'vừa xong';
+      try {
+        if (ts.toDate) return new Date(ts.toDate()).toLocaleString('vi-VN');
+      } catch (e) {}
+      if (ts.seconds) return new Date(ts.seconds * 1000).toLocaleString('vi-VN');
+      return '' + ts;
+    }
+
+    // Listen to collection
+    db.collection('videos').orderBy('createdAt', 'desc').onSnapshot((snap) => {
+      const arr = [];
+      snap.forEach((d) => arr.push(d.data()));
+      renderGallery(arr);
+    }, (err) => {
+      console.error('Listen failed', err);
+    });
+
+    // Example Firestore rule (copy into Firebase console and adjust before using in production):
+    // service cloud.firestore {
+    //   match /databases/{database}/documents {
+    //     match /videos/{docId} {
+    //       allow read: if true;
+    //       allow write: if request.auth != null; // allow anonymous users who signed in
+    //     }
+    //   }
+    // }
+
+    // Example Storage rule:
+    // service firebase.storage {
+    //   match /b/{bucket}/o {
+    //     match /videos/{allPaths=**} {
+    //       allow read;
+    //       allow write: if request.auth != null;
+    //     }
+    //   }
+    // }
+
+  </script>
+</body>
+</html>
